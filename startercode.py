@@ -6,9 +6,11 @@
 # If you worked with generative AI also add a statement for how you used it.
 # e.g.:
 # Asked ChatGPT for help debugging and understanding the JSON structure
-# -
+# - Asked Gemini for help explaining concepts like json.load/json.dump, 
+#   visually understanding what the cache looked like, and debugging my code
 # Did your use of GenAI on this assignment align with your goals and guidelines in your Gen AI contract? If not, why?
-# -
+# - Yes, my use of GenAI aligned with my goals and guidelines because I used it to 
+#   understand concepts and debug, not to replace my own learning
 # --- ARGUMENTS & EXPECTED RETURN VALUES PROVIDED --- #
 # --- SEE INSTRUCTIONS FOR FULL DETAILS ON METHOD IMPLEMENTATION --- #
 
@@ -118,6 +120,7 @@ def update_cache(breed_ids, cache_file):
     create_cache(cache, cache_file)
 
     percentage = (new_successful / len(breed_ids)) * 100
+    
     return f"Cached data for {percentage}% of breeds"
 
 
@@ -214,6 +217,53 @@ def recommend_breeds_in_same_group(breed_name, cache_file):
             "No group information available for '{breed_name}'."  (no group id)
             "No recommendations found based on '{breed_name}'."  (no other breeds in that group)
     """
+
+    cache = load_json(cache_file)
+
+    if cache == {}:
+        return "No breed data found in cache."
+
+    target_name = None
+    target_group_id = None
+
+    for breed_info in cache.values():
+        try:
+            current_name = breed_info["data"]["attributes"]["name"]
+            if current_name.lower() == breed_name.lower():
+                target_name = current_name
+                target_group_id = breed_info["data"]["relationships"]["group"]["data"]["id"]
+                break
+        except:
+            if "data" in breed_info and "attributes" in breed_info["data"]:
+                current_name = breed_info["data"]["attributes"].get("name")
+                if current_name and current_name.lower() == breed_name.lower():
+                    target_name = current_name
+                    break
+
+    if target_name is None:
+        return f"'{breed_name}' is not in the cache."
+
+    if target_group_id is None:
+        return f"No group information available for '{breed_name}'."
+
+    recommendations = []
+
+    for breed_info in cache.values():
+        try:
+            current_name = breed_info["data"]["attributes"]["name"]
+            current_group_id = breed_info["data"]["relationships"]["group"]["data"]["id"]
+
+            if current_group_id == target_group_id and current_name.lower() != breed_name.lower():
+                recommendations.append(current_name)
+        except:
+            continue
+
+    if len(recommendations) == 0:
+        return f"No recommendations found based on '{breed_name}'."
+
+    recommendations.sort()
+    
+    return recommendations
 
 
 class TestHomeworkDogAPI(unittest.TestCase):
@@ -438,7 +488,7 @@ class TestHomeworkDogAPI(unittest.TestCase):
     # -------------------------
     # extra credit - uncomment tests below to evaluate extra credit function
     # -------------------------
-    """
+   
     def test_recommend_breeds_in_same_group_empty_cache(self):
         create_cache({}, self.test_cache_file)
         self.assertEqual(
@@ -543,8 +593,7 @@ class TestHomeworkDogAPI(unittest.TestCase):
             recommend_breeds_in_same_group("breed a", self.test_cache_file),
             ["Breed B", "Breed Z"],
         )
-    """
-
+    
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
